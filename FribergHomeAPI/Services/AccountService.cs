@@ -22,13 +22,15 @@ namespace FribergHomeAPI.Services
         private readonly IConfiguration configuration;
         private readonly IRealEstateAgencyRepository agencyRepository;
         private readonly IMapper mapper;
+		private readonly ITransactionManager transactionManager;
 
-        public AccountService(UserManager<ApiUser> userManager,
+		public AccountService(UserManager<ApiUser> userManager,
             IRealEstateAgentRepository agentRepository,
             ApplicationDbContext applicationDbContext,
             IConfiguration configuration,
             IRealEstateAgencyRepository agencyRepository,
-            IMapper mapper)
+            IMapper mapper,
+            ITransactionManager transactionManager)
         {
             this.userManager = userManager;
             this.agentRepository = agentRepository;
@@ -36,7 +38,8 @@ namespace FribergHomeAPI.Services
             this.configuration = configuration;
             this.agencyRepository = agencyRepository;
             this.mapper = mapper;
-        }
+			this.transactionManager = transactionManager;
+		}
 
         public async Task<ServiceResult<LoginResult>> LoginAsync(LoginDTO loginDto)
         {
@@ -65,43 +68,29 @@ namespace FribergHomeAPI.Services
 
         public async Task<ServiceResult<RealEstateAgent>> RegisterAsync(AccountDTO dto)
         {
-            using var transaction = await dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await transactionManager.BeginAsync();
             try
             {
-                var user = new ApiUser
-                {
-                    FirstName = dto.FirstName,
-                    LastName = dto.LastName,
-                    UserName = dto.Email,
-                    NormalizedUserName = dto.Email.ToUpper(),
-                    NormalizedEmail = dto.Email.ToUpper(),
-                    Email = dto.Email,
-                };
+                var user = CreateApiUser(dto);
 
                 var result = await userManager.CreateAsync(user, dto.Password);
 
                 if (!result.Succeeded)
                 {
-                    return ServiceResult<RealEstateAgent>.Failure(result.Errors.Select(e => new ServiceResultError { Code = e.Code, Description = e.Description}));
+					await transaction.RollbackAsync();
+					return ServiceResult<RealEstateAgent>.Failure(result.Errors.Select(e => new ServiceResultError { Code = e.Code, Description = e.Description}));
                 }
 
                 await userManager.AddToRoleAsync(user, ApiRoles.User);
 
-                var agent = new RealEstateAgent
-                {
-                    FirstName = dto.FirstName,
-                    LastName = dto.LastName,
-                    Email = dto.Email,
-                    PhoneNumber = dto.PhoneNumber,
-                    ImageUrl = dto.ImageUrl,
-                    ApiUserId = user.Id,
-                };
+                var agent = CreateAgent(dto, user.Id);
 
                 var newAgent = await agentRepository.AddAsync(agent);
 
                 if(newAgent == null)
                 {
-                    return ServiceResult<RealEstateAgent>.Failure("Lyckades inte skapa en Mäklare.");
+					await transaction.RollbackAsync();
+					return ServiceResult<RealEstateAgent>.Failure("Lyckades inte skapa en Mäklare.");
                 }
 
                 var success = await agencyRepository.AddApplication(newAgent.Id, dto.AgencyId);
@@ -122,7 +111,32 @@ namespace FribergHomeAPI.Services
             }
         }
 
-        public async Task<bool> OwnedBy(ClaimsPrincipal user, int agentId)
+		private ApiUser CreateApiUser(AccountDTO dto)
+		{
+			return new ApiUser
+			{
+				FirstName = dto.FirstName,
+				LastName = dto.LastName,
+				UserName = dto.Email,
+				NormalizedUserName = dto.Email.ToUpper(),
+				NormalizedEmail = dto.Email.ToUpper(),
+				Email = dto.Email
+			};
+		}
+		private RealEstateAgent CreateAgent(AccountDTO dto, string userId)
+		{
+			return new RealEstateAgent
+			{
+				FirstName = dto.FirstName,
+				LastName = dto.LastName,
+				Email = dto.Email,
+				PhoneNumber = dto.PhoneNumber,
+				ImageUrl = dto.ImageUrl,
+				ApiUserId = userId
+			};
+		}
+
+		public async Task<bool> OwnedBy(ClaimsPrincipal user, int agentId)
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(userId)) return false;

@@ -4,6 +4,7 @@ using FribergHomeAPI.Data.Repositories;
 using FribergHomeAPI.Data.Seeding;
 using FribergHomeAPI.Models;
 using FribergHomeAPI.Services;
+using FribergHomeAPI.TestDemo;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,10 @@ builder.Services.AddScoped<IMuncipalityRepository, MuncipalityRepository>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
 builder.Services.AddScoped<IAgencyService, AgencyService>();
+builder.Services.AddScoped<ITransactionManager, EfCoreTransactionManager>();
+builder.Services.AddScoped<IDogService, DogService>(); //For TestDemo
+builder.Services.AddHttpClient<IDogService, DogService>(); //For TestDemo
+builder.Services.Configure<ApiServiceConfig>(builder.Configuration.GetSection("ApiServiceConfig")); //For TestDemo
 
 builder.Services.AddAutoMapper(typeof(Program));
 
