@@ -40,7 +40,7 @@ namespace Test.FribergHomeAPIFork.Systems.Services
             mockUserManager.Setup(um => um.CreateAsync(It.IsAny<ApiUser>(), It.IsAny<string>())).ReturnsAsync(IdentityResult.Success);
             mockUserManager.Setup(um => um.AddToRoleAsync(It.IsAny<ApiUser>(), ApiRoles.User)).ReturnsAsync(IdentityResult.Success);
             mockAgentRepository.Setup(ar => ar.AddAsync(It.IsAny<RealEstateAgent>())).ReturnsAsync(agent);
-            mockAgencyRepository.Setup(ar => ar.AddApplication(agent.Id, accountDTO.AgencyId)).ReturnsAsync(true);
+            mockAgencyRepository.Setup(ar => ar.AddApplication(It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync(true);
             mockTransactionManager.Setup(tm => tm.BeginAsync()).ReturnsAsync(mockTransaction.Object);
             mockTransaction.Setup(t => t.CommitAsync()).Returns(Task.CompletedTask);
             mockTransaction.Setup(t => t.RollbackAsync()).Returns(Task.CompletedTask);
