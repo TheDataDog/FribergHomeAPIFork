@@ -81,9 +81,14 @@ namespace FribergHomeAPI.Services
 					return ServiceResult<RealEstateAgent>.Failure(result.Errors.Select(e => new ServiceResultError { Code = e.Code, Description = e.Description}));
                 }
 
-                await userManager.AddToRoleAsync(user, ApiRoles.User);
+                var addRoleResult = await userManager.AddToRoleAsync(user, ApiRoles.User);
+				if (!result.Succeeded)
+				{
+					await transaction.RollbackAsync();
+					return ServiceResult<RealEstateAgent>.Failure(result.Errors.Select(e => new ServiceResultError { Code = e.Code, Description = e.Description }));
+				}
 
-                var agent = CreateAgent(dto, user.Id);
+				var agent = CreateAgent(dto, user.Id);
 
                 var newAgent = await agentRepository.AddAsync(agent);
 

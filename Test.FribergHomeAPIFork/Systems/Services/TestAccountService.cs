@@ -69,7 +69,112 @@ namespace Test.FribergHomeAPIFork.Systems.Services
             mockUserManager.Verify(um => um.AddToRoleAsync(It.IsAny<ApiUser>(), ApiRoles.User), Times.Once);
             mockAgentRepository.Verify(ar => ar.AddAsync(It.Is<RealEstateAgent>(a => a.Email == accountDTO.Email)), Times.Once);
             mockAgencyRepository.Verify(ar => ar.AddApplication(agent.Id, accountDTO.AgencyId), Times.Once);
+		}
 
+        [Fact]
+        public async Task RegisterAsync_CreateAsyncFailed_PerformsRollBack()
+        {
+            //Arrange
+			var accountDTO = AccountsFixtures.CreateAccountDTO();
+			var apiUser = AccountsFixtures.CreateApiUser(accountDTO);
+
+			mockUserManager.Setup(um => um.CreateAsync(It.IsAny<ApiUser>(), It.IsAny<string>()))
+                                .ReturnsAsync(IdentityResult.Failed(new IdentityError()));
+
+			mockTransactionManager.Setup(tm => tm.BeginAsync()).ReturnsAsync(mockTransaction.Object);
+			mockTransaction.Setup(t => t.RollbackAsync()).Returns(Task.CompletedTask);
+
+			var accountService = new AccountService(
+										mockUserManager.Object,
+										mockAgentRepository.Object,
+										null,
+										null,
+										mockAgencyRepository.Object,
+										null,
+										mockTransactionManager.Object);
+
+			//Act
+			var result = await accountService.RegisterAsync(accountDTO);
+
+			//Assert
+			mockTransaction.Verify(t => t.RollbackAsync(), Times.Once);
+			result.Success.Should().NotBe(true);
+			result.Should().BeOfType<ServiceResult<RealEstateAgent>>();
+		}
+
+        [Fact]
+        public async Task RegisterAsync_AddToRoleAsyncFailed_PerformsRollback()
+        {
+			//Arrange
+			var accountDTO = AccountsFixtures.CreateAccountDTO();
+			var apiUser = AccountsFixtures.CreateApiUser(accountDTO);
+
+			mockUserManager.Setup(um => um.CreateAsync(It.IsAny<ApiUser>(), It.IsAny<string>()))
+								.ReturnsAsync(IdentityResult.Success);
+
+			mockUserManager.Setup(um => um.AddToRoleAsync(It.IsAny<ApiUser>(), ApiRoles.User))
+								.ReturnsAsync(IdentityResult.Failed(new IdentityError()));
+
+			mockTransactionManager.Setup(tm => tm.BeginAsync()).ReturnsAsync(mockTransaction.Object);
+			mockTransaction.Setup(t => t.RollbackAsync()).Returns(Task.CompletedTask);
+
+			var accountService = new AccountService(
+										mockUserManager.Object,
+										mockAgentRepository.Object,
+										null,
+										null,
+										mockAgencyRepository.Object,
+										null,
+										mockTransactionManager.Object);
+
+			//Act
+			var result = await accountService.RegisterAsync(accountDTO);
+
+			//Assert
+			mockTransaction.Verify(t => t.RollbackAsync(), Times.Once);
+			result.Success.Should().NotBe(true);
+			result.Should().BeOfType<ServiceResult<RealEstateAgent>>();
+		}
+
+        [Fact]
+        public async Task RegisterAsync_AddAsyncReturnsNull_PerformsRollback()
+        {
+			//Arrange
+			var accountDTO = AccountsFixtures.CreateAccountDTO();
+			var apiUser = AccountsFixtures.CreateApiUser(accountDTO);
+
+			mockUserManager.Setup(um => um.CreateAsync(It.IsAny<ApiUser>(), It.IsAny<string>()))
+								.ReturnsAsync(IdentityResult.Success);
+
+			mockUserManager.Setup(um => um.AddToRoleAsync(It.IsAny<ApiUser>(), ApiRoles.User))
+								.ReturnsAsync(IdentityResult.Success);
+
+			mockTransactionManager.Setup(tm => tm.BeginAsync()).ReturnsAsync(mockTransaction.Object);
+			mockTransaction.Setup(t => t.RollbackAsync()).Returns(Task.CompletedTask);
+
+			mockAgentRepository.Setup(ar => ar.AddAsync(It.IsAny<RealEstateAgent>())).ReturnsAsync((RealEstateAgent)null);
+
+			var accountService = new AccountService(
+										mockUserManager.Object,
+										mockAgentRepository.Object,
+										null,
+										null,
+										mockAgencyRepository.Object,
+										null,
+										mockTransactionManager.Object);
+
+			//Act
+			var result = await accountService.RegisterAsync(accountDTO);
+
+			//Assert
+			mockTransaction.Verify(t => t.RollbackAsync(), Times.Once);
+			result.Success.Should().NotBe(true);
+			result.Should().BeOfType<ServiceResult<RealEstateAgent>>();
+		}
+
+		[Fact]
+		public async Task RegisterAsync_AddRoleReturnsFalse_PerformsRollback()
+		{
 
 		}
     }
