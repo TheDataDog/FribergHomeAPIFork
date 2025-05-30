@@ -56,6 +56,17 @@ namespace Test.FribergHomeAPIFork.Fixtures
 			};
 		}
 
+		public static RealEstateAgency CreateAgency()
+		{
+			return new RealEstateAgency
+			{
+				Id = 1,
+				Name = "TestAgency",
+				Presentation = "Presentation",
+				LogoUrl = "http://img.com/img.jpg"
+			};
+		}
+
 		public static Mock<UserManager<ApiUser>> GetMockUserManager()
 		{
 			var store = new Mock<IUserStore<ApiUser>>();
