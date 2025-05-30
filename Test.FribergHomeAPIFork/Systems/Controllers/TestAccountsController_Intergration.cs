@@ -88,7 +88,7 @@ namespace Test.FribergHomeAPIFork.Systems.Controllers
 			Assert.NotNull(createdUser);
 
 			var isInRole = await userManager.IsInRoleAsync(createdUser, "User");
-			Assert.False(isInRole);
+			Assert.True(isInRole);
 
 			var agent = dbContext.Agents.SingleOrDefault(a => a.Email.Equals(accountDTO.Email));
 			Assert.NotNull(agent);
